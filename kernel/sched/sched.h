@@ -963,6 +963,7 @@ DECLARE_STATIC_KEY_FALSE(sched_uclamp_used);
 struct rq {
 	/* runqueue lock: */
 	raw_spinlock_t		lock;
+	unsigned long nr_load_updates;
 
 	/*
 	 * nr_running and cpu_load should be in the same cacheline because
@@ -988,7 +989,9 @@ struct rq {
 
 	/* capture load from *all* tasks on this CPU: */
 	struct load_weight	load;
-	unsigned long		nr_load_updates;
+#ifdef CONFIG_SMP
+	unsigned int		ttwu_pending;
+#endif
 	u64			nr_switches;
 
 #ifdef CONFIG_UCLAMP_TASK
