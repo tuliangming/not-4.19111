@@ -174,6 +174,12 @@ static void cpuidle_idle_call(void)
 	if (idle_should_enter_s2idle() || dev->use_deepest_state) {
 		if (idle_should_enter_s2idle()) {
 
+#ifdef CONFIG_QGKI_SHOW_S2IDLE_WAKE_IRQ
+			bool print_wake_irq;
+
+			cpumask_set_cpu(dev->cpu, &cpu_state);
+#endif /* CONFIG_QGKI_SHOW_S2IDLE_WAKE_IRQ */
+
 			entered_state = cpuidle_enter_s2idle(drv, dev);
 			if (entered_state > 0) {
 				local_irq_enable();
