@@ -215,8 +215,6 @@ static inline bool cpus_share_cache(int this_cpu, int that_cpu)
 	return true;
 }
 
-#endif	/* !CONFIG_SMP */
-
 #ifndef arch_scale_cpu_capacity
 static __always_inline
 unsigned long arch_scale_cpu_capacity(int cpu)
