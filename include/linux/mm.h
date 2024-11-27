@@ -150,6 +150,9 @@ int vm_workingset_protection_update_handler(
 extern unsigned long sysctl_user_reserve_kbytes;
 extern unsigned long sysctl_admin_reserve_kbytes;
 
+#ifdef CONFIG_ZRAM_ENTROPY
+extern unsigned long sysctl_zram_entropy_threshold;
+#endif
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
 extern unsigned long sysctl_overcommit_kbytes;
