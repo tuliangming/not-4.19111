@@ -315,10 +315,6 @@ void cpufreq_limit_set_table(int cpu, struct cpufreq_frequency_table *ftbl)
 	if (!param.big_max_freq)
 		param.big_max_freq = max_freq_b;
 
-	pr_info("%s: updated: little(%u-%u), big(%u-%u)\n", __func__,
-			param.ltl_min_freq, param.ltl_max_freq,
-			param.big_min_freq, param.big_max_freq);
-
 	param.table_initialized = cpufreq_limit_make_table();
 }
 
