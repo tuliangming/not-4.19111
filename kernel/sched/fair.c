@@ -4315,6 +4315,8 @@ static inline bool task_fits_capacity(struct task_struct *p,
 					int cpu)
 {
 	unsigned int margin;
+	unsigned long uclamp_min = p->uclamp_req[UCLAMP_MIN].value;
+	unsigned long uclamp_max = p->uclamp_req[UCLAMP_MAX].value;
 
 	/*
 	 * Derive upmigration/downmigrate margin wrt the src/dest
@@ -4325,7 +4327,7 @@ static inline bool task_fits_capacity(struct task_struct *p,
 	else
 		margin = sched_capacity_margin_up[task_cpu(p)];
 
-	return capacity * 1024 > uclamp_task_util(p) * margin;
+	return capacity * 1024 > uclamp_task_util(p, uclamp_min, uclamp_max) * margin;
 }
 
 static inline bool task_fits_max(struct task_struct *p, int cpu)
@@ -8065,6 +8067,9 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 				     int sync, int sibling_count_hint)
 {
 	unsigned long prev_energy = ULONG_MAX, best_energy = ULONG_MAX;
+	unsigned long prev_delta = ULONG_MAX, best_delta = ULONG_MAX;
+	unsigned long p_util_min = uclamp_is_used() ? uclamp_eff_value(p, UCLAMP_MIN) : 0;
+	unsigned long p_util_max = uclamp_is_used() ? uclamp_eff_value(p, UCLAMP_MAX) : 1024;
 	struct root_domain *rd = cpu_rq(smp_processor_id())->rd;
 	int weight, cpu = smp_processor_id(), best_energy_cpu = prev_cpu;
 	unsigned long cur_energy;
