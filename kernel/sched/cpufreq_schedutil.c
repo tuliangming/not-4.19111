@@ -457,6 +457,16 @@ static unsigned long sugov_get_util(struct sugov_cpu *sg_cpu)
 }
 #endif
 
+<<<<<<< HEAD
+=======
+unsigned long sched_cpu_util(int cpu)
+{
+	unsigned long max = arch_scale_cpu_capacity(cpu);
+
+	return schedutil_cpu_util(cpu, cpu_util_cfs(cpu_rq(cpu)), max, ENERGY_UTIL, NULL);
+}
+
+>>>>>>> 8d805b559ac1c (treewide: Fix topology_get_cpu_scale & arch_scale_cpu_capacity usage)
 /**
  * sugov_iowait_reset() - Reset the IO boost status of a CPU.
  * @sg_cpu: the sugov data for the CPU to boost
