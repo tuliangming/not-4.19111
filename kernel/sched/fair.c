@@ -144,10 +144,10 @@ unsigned int capacity_margin				= 1280;
 #define fits_capacity(cap, max)	((cap) * 1280 < (max) * 1024)
 
 unsigned int sched_capacity_margin_up[NR_CPUS] = {
-	[0 ... CPU_NR - 1] = 1078
+	[0 ... NR_CPUS - 1] = 1078
 }; /* ~5% margin */
 unsigned int sched_capacity_margin_down[NR_CPUS] = {
-	[0 ... CPU_NR - 1] = 1078
+	[0 ... NR_CPUS - 1] = 1078
 }; /* ~5% margin */
 unsigned int sched_capacity_margin_up_boosted[NR_CPUS] = {
 	3658, 3658, 3658, 3658, 1078, 1078, 1078, 1024
@@ -164,8 +164,8 @@ unsigned int sysctl_sched_min_task_util_for_colocation = 35;
 __read_mostly unsigned int sysctl_sched_prefer_spread;
 unsigned int sysctl_walt_rtg_cfs_boost_prio = 99; /* disabled by default */
 unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by default */
-__read_mostly unsigned int sysctl_sched_force_lb_enable = 1;
 #endif
+__read_mostly unsigned int sysctl_sched_force_lb_enable = 1;
 
 static inline void update_load_add(struct load_weight *lw, unsigned long inc)
 {
