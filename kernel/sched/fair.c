@@ -7865,14 +7865,13 @@ cpu_util_next_walt(int cpu, struct task_struct *p, int dst_cpu)
 static long
 compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 {
-	unsigned int max_util, cpu_util, cpu_cap;
-	unsigned long sum_util, energy = 0;
-	unsigned long min, max;
+	struct cpumask *pd_mask = perf_domain_span(pd);
+	unsigned int cpu_util, cpu_cap = arch_scale_cpu_capacity(cpumask_first(pd_mask));
+	unsigned long max_util = 0, sum_util = 0;
+	unsigned long energy = 0;
 	int cpu;
 
 	for (; pd; pd = pd->next) {
-		struct cpumask *pd_mask = perf_domain_span(pd);
-
 		/*
 		 * The energy model mandates all the CPUs of a performance
 		 * domain have the same capacity.
@@ -7895,9 +7894,9 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 			cpu_util = cpu_util_next_walt(cpu, p, dst_cpu);
 			sum_util += cpu_util;
 #else
-			unsigned int util_cfs;
-
-			util_cfs = cpu_util_next(cpu, p, dst_cpu);
+		        unsigned long cpu_util, util_cfs = cpu_util_next(cpu, p, dst_cpu);
+			struct task_struct *tsk = cpu == dst_cpu ? p : NULL;
+			unsigned long min, max;
 
 			/*
 			 * Busy time computation: utilization clamping is not
@@ -7915,12 +7914,27 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 			 * NOTE: in case RT tasks are running, by default the
 			 * FREQUENCY_UTIL's utilization can be max OPP.
 			 */
+			cpu_util = schedutil_cpu_util(cpu, util_cfs, &min, &max);
+			
+		/* Task's uclamp can modify min and max value */
+		if (tsk && uclamp_is_used()) {
+			min = max(min, uclamp_eff_value(p, UCLAMP_MIN));
+			
+			/*
+			 * If there is no active max uclamp constraint,
+			 * directly use task's one, otherwise keep max.
+			 */
+			if (uclamp_rq_is_idle(cpu_rq(cpu)))
+				max = uclamp_eff_value(p, UCLAMP_MAX);
+			else
+				max = max(max, uclamp_eff_value(p, UCLAMP_MAX));
+		}
 			cpu_util = sugov_effective_cpu_perf(cpu, cpu_util, min, max);
 #endif
 			max_util = max(max_util, cpu_util);
 		}
 
-		energy += em_pd_energy(pd->em_pd, max_util, sum_util);
+		energy += em_pd_energy(pd->em_pd, max_util, sum_util, cpu_cap);
 	}
 
 	return energy;

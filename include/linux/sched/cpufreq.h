@@ -30,9 +30,9 @@ void cpufreq_remove_update_util_hook(int cpu);
 bool cpufreq_this_cpu_can_update(struct cpufreq_policy *policy);
 
 static inline unsigned long map_util_freq(unsigned long util,
-					unsigned long freq, unsigned long cap)
+		   unsigned long freq, unsigned long cap)
 {
-	return (freq + (freq >> 2)) * util / cap;
+	return freq * util / cap;
 }
 
 static inline unsigned long map_util_perf(unsigned long util)
