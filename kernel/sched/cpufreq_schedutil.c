@@ -701,7 +701,7 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 {
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
 	struct cpufreq_policy *policy = sg_policy->policy;
-	unsigned long util = 0, max_cap, boost;
+	unsigned long util = 0, max_cap;
 	unsigned int j;
 
 	max_cap = arch_scale_cpu_capacity(sg_cpu->cpu);
@@ -724,7 +724,7 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 {
 	struct sugov_cpu *sg_cpu = container_of(hook, struct sugov_cpu, update_util);
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
-	unsigned long util = 0, max_cap, boost;
+	unsigned long util = 0, boost;
 	unsigned int next_f;
 	
 #ifdef CONFIG_SCHED_FFSI_GLUE

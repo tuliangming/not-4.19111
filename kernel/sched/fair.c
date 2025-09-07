@@ -7743,6 +7743,7 @@ out:
 				     target_cpu, backup_cpu);
 }
 
+#if 0
 /*
  * Disable WAKE_AFFINE in the case where task @p doesn't fit in the
  * capacity of either the waking CPU @cpu or the previous CPU @prev_cpu.
@@ -7769,6 +7770,7 @@ static int wake_cap(struct task_struct *p, int cpu, int prev_cpu)
 
 	return !task_fits_max(p, cpu);
 }
+#endif
 
 /*
  * Predicts what cpu_util(@cpu) would return if @p was migrated (and enqueued)
@@ -7863,7 +7865,7 @@ static long
 compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 {
 	struct cpumask *pd_mask = perf_domain_span(pd);
-	unsigned int cpu_util, cpu_cap = arch_scale_cpu_capacity(cpumask_first(pd_mask));
+	unsigned int cpu_cap = arch_scale_cpu_capacity(cpumask_first(pd_mask));
 	unsigned long max_util = 0, sum_util = 0;
 	unsigned long energy = 0;
 	int cpu;
@@ -11449,7 +11451,7 @@ static inline bool update_newidle_cost(struct sched_domain *sd, u64 cost)
 		 * limit, plus a litle extra to avoid off by ones.
 		 */
 		sd->max_newidle_lb_cost =
-			min(cost, sysctl_sched_migration_cost + 200);
+			min(cost, (unsigned long long)(sysctl_sched_migration_cost + 200));
 		sd->last_decay_max_lb_cost = jiffies;
 	} else if (time_after(jiffies, sd->last_decay_max_lb_cost + HZ)) {
 		/*

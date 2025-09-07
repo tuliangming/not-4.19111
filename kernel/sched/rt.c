@@ -1545,7 +1545,6 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 {
 	struct task_struct *curr;
 	struct rq *rq;
-	bool sync = !!(flags & WF_SYNC);
 	bool test;
 	int this_cpu;
 
