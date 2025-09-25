@@ -1,6 +1,6 @@
 #!/bin/bash
-LLVM_PATH="/home/skye/toolchains/neutron-clang/bin/"
-LLVM_PATH="/home/skye/toolchains/neutron-clang/bin/"
+LLVM_PATH="$HOME/toolchains/neutron-clang/bin/"
+LLVM_PATH="$HOME/toolchains/neutron-clang/bin/"
 
 KERNEL_NAME="trilinear"
 
@@ -13,16 +13,16 @@ HOST_BUILD_ENV="ARCH=arm64 \
 
 KERNEL_MAKE_ENV="DTC_EXT=$(pwd)/tools/dtc CONFIG_BUILD_ARM64_DT_OVERLAY=y"
 
-IMAGE="/home/skye/bomb/out/arch/arm64/boot/Image"
-OUT_DIR="/home/skye/bomb/out"
-ANYKERNEL_DIR="/home/skye/bomb/AnyKernel3/r8q"
+IMAGE="$HOME/bomb/out/arch/arm64/boot/Image"
+OUT_DIR="$HOME/bomb/out"
+ANYKERNEL_DIR="$HOME/bomb/AnyKernel3/r8q"
 
 echo "*****************************************"
 echo "*****************************************"
 
 rm -rf "$OUT_DIR/arch/arm64/boot/Image"
 rm -rf "$ANYKERNEL_DIR/dtb"
-rm -rf /home/skye/bomb/out/arch/arm64/boot/dtbo.img
+rm -rf $HOME/bomb/out/arch/arm64/boot/dtbo.img
 rm -rf .version .local
 make O="$OUT_DIR" $HOST_BUILD_ENV vendor/kona-not_defconfig vendor/samsung/kona-sec-not.config vendor/samsung/r8q.config vendor/kali.config
 
@@ -34,8 +34,8 @@ echo "*****************************************"
 make -j12 O="$OUT_DIR" $KERNEL_MAKE_ENV $HOST_BUILD_ENV \
      CC="${LLVM_PATH}clang --target=aarch64-linux-gnu" dtbo.img
 
-cp /home/skye/bomb/out/arch/arm64/boot/dtbo.img "$ANYKERNEL_DIR/dtbo.img"
-cat /home/skye/bomb/out/arch/arm64/boot/dts/vendor/qcom/*.dtb > "$ANYKERNEL_DIR/dtb"
+cp $HOME/bomb/out/arch/arm64/boot/dtbo.img "$ANYKERNEL_DIR/dtbo.img"
+cat $HOME/bomb/out/arch/arm64/boot/dts/vendor/qcom/*.dtb > "$ANYKERNEL_DIR/dtb"
 
 # Build Kernel Image
 
