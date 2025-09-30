@@ -12,27 +12,11 @@
 
 #include "sched.h"
 
-#ifdef CONFIG_SCHED_FFSI_GLUE
-#include <linux/ffsi.h>
-/**
- * 2nd argument of ffsi_obj_creator() experimentally decided by client itself,
- * which represents how much variant the random variable registered to FFSI
- * instance can behave at most, in terms of referencing d2u_decl_cmtpdf table
- * (maximum index of d2u_decl_cmtpdf table).
- */
-#define UTILAVG_FFSI_VARIANCE	16
-DECLARE_ELASTICITY(cpufreq, 6, 5, 24, 25);
-#define FFSI_CLUSTER_TRAVERSING
-#endif
-
 #define IOWAIT_BOOST_MIN	(SCHED_CAPACITY_SCALE / 8)
 
 struct sugov_tunables {
 	struct gov_attr_set	attr_set;
 	unsigned int		rate_limit_us;
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	bool 			fb_legacy;
-#endif
 };
 
 struct sugov_policy {
@@ -57,9 +41,6 @@ struct sugov_policy {
 
 	bool			limits_changed;
 	bool			need_freq_update;
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	bool 			be_stochastic;
-#endif
 };
 
 struct sugov_cpu {
@@ -70,19 +51,9 @@ struct sugov_cpu {
 	bool			iowait_boost_pending;
 	unsigned int		iowait_boost;
 	u64			last_update;
-	
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	/**
-	 * FFSI instance which should be referenced in percpu manner,
-	 * and data accordingly to handle the target job intensity.
-	 */
-	struct ffsi_class 	*util_vessel;
-	unsigned long 		cached_util;
-#endif
-	unsigned int            flags;
+
 	unsigned long		util;
 	unsigned long		bw_min;
-	unsigned long		max;
 };
 
 static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
@@ -224,21 +195,6 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	struct cpufreq_policy *policy = sg_policy->policy;
 	unsigned int freq;
 	unsigned int idx, l_freq, h_freq;
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	struct sugov_cpu *sg_cpu;
-	struct ffsi_class *vessel;
-	unsigned int delta_max, delta_min;
-	int util_delta;
-	unsigned int legacy_freq;
-
-#ifdef FFSI_CLUSTER_TRAVERSING
-	unsigned int each;
-	unsigned int sigma_cpu = policy->cpu;
-	randomness most_rand = 0;
-#endif
-	int cur_rand = FFSI_DIVERGING;
-	RV_DECLARE(rv);
-#endif
 
 	if (arch_scale_freq_invariant())
 		freq = policy->cpuinfo.max_freq;
@@ -249,58 +205,7 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 		 */
 		freq = policy->cur + (policy->cur >> 2);
 
-	freq = map_util_freq(util, freq, max, policy->cpu);
-	
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	legacy_freq = freq;
-
-	if (sg_policy->tunables->fb_legacy)
-		goto skip_betting;
-
-#ifndef FFSI_CLUSTER_TRAVERSING
-	sg_cpu = &per_cpu(sugov_cpu, policy->cpu);
-	vessel = sg_cpu->util_vessel;
-
-	if (!vessel)
-		goto skip_betting;
-
-	cur_rand = vessel->job_inferer(vessel);
-	if (cur_rand == FFSI_DIVERGING)
-		goto skip_betting;
-#else
-	for_each_cpu(each, policy->cpus) {
-		sg_cpu = &per_cpu(sugov_cpu, each);
-
-		vessel = sg_cpu->util_vessel;
-		if (vessel) {
-			cur_rand = vessel->job_inferer(vessel);
-			if (cur_rand == FFSI_DIVERGING)
-				goto skip_betting;
-			else {
-				if (cur_rand > (int)most_rand) {
-					most_rand = (randomness)cur_rand;
-					sigma_cpu = each;
-				}
-			}
-		} else
-			goto skip_betting;
-	}
-
-	sg_cpu	= &per_cpu(sugov_cpu, sigma_cpu);
-	vessel	= sg_cpu->util_vessel;
-#endif
-	util_delta = sg_cpu->util - sg_cpu->cached_util;
-	delta_max  = sg_cpu->max - sg_cpu->cached_util;
-	delta_min  = sg_cpu->cached_util;
-
-	RV_SET(rv, util_delta, delta_max, delta_min);
-	freq = vessel->cap_bettor(vessel, &rv, freq);
-
-skip_betting:
-	trace_sugov_ffsi_freq(policy->cpu, util, max, cur_rand, legacy_freq, freq);
-#else
-	trace_sugov_next_freq(policy->cpu, util, max, freq);
-#endif
+	freq = map_util_freq(util, freq, max);
 
 	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
 		return sg_policy->next_freq;
@@ -325,49 +230,27 @@ skip_betting:
 
 static inline unsigned long apply_dvfs_headroom(unsigned long util, int cpu)
 {
-    	unsigned long capacity = capacity_orig_of(cpu);
-    	unsigned long delta, headroom, min_util, max_boost, min_boost;
-    	
-    	/* There's no need of headroom at high utilization. The same goes
-	 * for very low utilization as well. Consider 6.25% (capacity / 16)
-	 * as the minimum utilization required.
-	 */
-	if (unlikely(util >= capacity) || likely(util < (capacity >> 4)))
-        	return util;
-        /*
-	 * Quadratically taper the boosting at the top end based on capacity
-	 * as these are expensive and we don't need that much of a big
-	 * headroom as we approach max capacity.
-	 *
-	 * Formula: (delta²) / (5 * capacity)
-         */
-	delta = capacity - util;
-	headroom = (delta * delta) / (5 * capacity);
+	unsigned long capacity = capacity_orig_of(cpu);
+	unsigned long delta, headroom, min_util;
 
-        /* Limit the headroom within a valid range to avoid excessive or
-	 * negligible boosts.
-	 * Cap the maximum headroom at 10% (capacity / 10) to prevent
-	 * unnecessary over-boosting.
-	 * If the calculated headroom is below 0.39% (capacity / 256),
-	 * skip boosting as it is unlikely to trigger a frequency change.
-         */
-	max_boost = capacity / 10;
-	min_boost = capacity >> 8;
-
-	if (headroom > max_boost)
-		headroom = max_boost;
-	else if (headroom < min_boost)
+	if (util >= capacity)
 		return util;
+        /*
+        * Quadratic taper the boosting at the top end as these are expensive
+        * and we don't need that much of a big headroom as we approach max
+        * capacity
+        */
+	delta = capacity - util;
+	headroom = ((delta * delta) >> 12);
 
 	/* 10% of capacity threshold */
-    	min_util = capacity / 10;
+	min_util = capacity / 10;
 
-    	/* Suppress boosting below the threshold */
-    	if (util < min_util) {
-        	headroom = (headroom * util * util) / (min_util * min_util);
-    	}
+	/* Suppress boosting below the threshold */
+	if (util < min_util)
+		headroom = (headroom * util * util) / (min_util * min_util);
 
-    	return util + headroom;
+	return util + headroom;
 }
 
 unsigned long sugov_effective_cpu_perf(int cpu, unsigned long actual,
@@ -396,23 +279,6 @@ static void sugov_get_util(struct sugov_cpu *sg_cpu, unsigned long boost)
 	sg_cpu->bw_min = min;
 	sg_cpu->util = sugov_effective_cpu_perf(sg_cpu->cpu, util, min, max);
 }
-
-#ifdef CONFIG_SCHED_FFSI_GLUE
-static inline void sugov_util_collapse(struct sugov_cpu *sg_cpu)
-{
-	struct ffsi_class *vessel = sg_cpu->util_vessel;
-	int util_delta = min(sg_cpu->max, sg_cpu->util) - sg_cpu->cached_util;
-	unsigned int delta_max = sg_cpu->max - sg_cpu->cached_util;
-	unsigned int delta_min = sg_cpu->cached_util;
-
-	RV_DECLARE(job);
-
-	if (vessel) {
-		RV_SET(job, util_delta, delta_max, delta_min);
-		vessel->job_learner(vessel, &job);
-	}
-}
-#endif
 
 /**
  * sugov_iowait_reset() - Reset the IO boost status of a CPU.
@@ -568,7 +434,7 @@ static void sugov_update_single_freq(struct update_util_data *hook, u64 time,
 {
 	struct sugov_cpu *sg_cpu = container_of(hook, struct sugov_cpu, update_util);
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
-	unsigned long util = 0, max_cap;
+	unsigned long max_cap;
 	unsigned int next_f;
 
 	max_cap = arch_scale_cpu_capacity(sg_cpu->cpu);
@@ -576,14 +442,7 @@ static void sugov_update_single_freq(struct update_util_data *hook, u64 time,
 	if (!sugov_update_single_common(sg_cpu, time, max_cap, flags))
 		return;
 
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	sg_cpu->cached_util = sg_cpu->util;
-	sg_cpu->util = util;
-#endif
 	next_f = get_next_freq(sg_policy, sg_cpu->util, max_cap);
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	sugov_util_collapse(sg_cpu);
-#endif
 
 	if (!sugov_update_next_freq(sg_policy, time, next_f))
 		return;
@@ -656,18 +515,8 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 {
 	struct sugov_cpu *sg_cpu = container_of(hook, struct sugov_cpu, update_util);
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
-	unsigned long util = 0, boost;
 	unsigned int next_f;
-	
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	sg_cpu->cached_util = sg_cpu->util;
-#endif
-        sugov_get_util(sg_cpu, boost);
-        util = max(sg_cpu->util, util);
-	sg_cpu->flags = flags;
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	sugov_util_collapse(sg_cpu);
-#endif
+
 	raw_spin_lock(&sg_policy->update_lock);
 
 	sugov_iowait_boost(sg_cpu, time, flags);
@@ -760,36 +609,10 @@ rate_limit_us_store(struct gov_attr_set *attr_set, const char *buf, size_t count
 	return count;
 }
 
-#ifdef CONFIG_SCHED_FFSI_GLUE
-static ssize_t fb_legacy_show(struct gov_attr_set *attr_set, char *buf)
-{
-	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
-
-	return scnprintf(buf, PAGE_SIZE, "%u\n", tunables->fb_legacy);
-}
-
-static ssize_t fb_legacy_store(struct gov_attr_set *attr_set, const char *buf,
-			       size_t count)
-{
-	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
-
-	if (kstrtobool(buf, &tunables->fb_legacy))
-		return -EINVAL;
-
-	return count;
-}
-#endif
-
 static struct governor_attr rate_limit_us = __ATTR_RW(rate_limit_us);
-#ifdef CONFIG_SCHED_FFSI_GLUE
-static struct governor_attr fb_legacy = __ATTR_RW(fb_legacy);
-#endif
 
 static struct attribute *sugov_attributes[] = {
 	&rate_limit_us.attr,
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	&fb_legacy.attr,
-#endif
 	NULL
 };
 
@@ -990,9 +813,6 @@ static void sugov_exit(struct cpufreq_policy *policy)
 	struct sugov_policy *sg_policy = policy->governor_data;
 	struct sugov_tunables *tunables = sg_policy->tunables;
 	unsigned int count;
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, policy->cpu);
-#endif
 
 	mutex_lock(&global_tunables_lock);
 
@@ -1002,15 +822,6 @@ static void sugov_exit(struct cpufreq_policy *policy)
 		sugov_clear_global_tunables();
 
 	mutex_unlock(&global_tunables_lock);
-	
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	if (sg_cpu->util_vessel) {
-		sg_cpu->util_vessel->finalizer(sg_cpu->util_vessel);
-		ffsi_obj_destructor(sg_cpu->util_vessel);
-		sg_cpu->util_vessel = NULL;
-	}
-	sg_policy->be_stochastic = false;
-#endif
 
 	sugov_kthread_stop(sg_policy);
 	sugov_policy_free(sg_policy);
@@ -1022,9 +833,6 @@ static int sugov_start(struct cpufreq_policy *policy)
 	struct sugov_policy *sg_policy = policy->governor_data;
 	void (*uu)(struct update_util_data *data, u64 time, unsigned int flags);
 	unsigned int cpu;
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	char alias[FFSI_ALIAS_LEN] = {0,};
-#endif
 
 	sg_policy->freq_update_delay_ns	= sg_policy->tunables->rate_limit_us * NSEC_PER_USEC;
 	sg_policy->last_freq_update_time	= 0;
@@ -1038,45 +846,10 @@ static int sugov_start(struct cpufreq_policy *policy)
 	for_each_cpu(cpu, policy->cpus) {
 		struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
 
-#ifdef CONFIG_SCHED_FFSI_GLUE
-#ifndef FFSI_CLUSTER_TRAVERSING
-		if (cpu != policy->cpu) {
-			memset(sg_cpu, 0, sizeof(*sg_cpu));
-			goto skip_subcpus;
-		}
-#endif
-		if (!sg_policy->be_stochastic) {
-			sprintf(alias, "govern%d", cpu);
-			memset(sg_cpu, 0, sizeof(*sg_cpu));
-			sg_cpu->util_vessel =
-				ffsi_obj_creator(alias,
-						 UTILAVG_FFSI_VARIANCE,
-						 policy->cpuinfo.max_freq,
-						 policy->cpuinfo.min_freq,
-						 &elasticity_cpufreq);
-			if (sg_cpu->util_vessel->initializer(sg_cpu->util_vessel) < 0) {
-				sg_cpu->util_vessel->finalizer(sg_cpu->util_vessel);
-				ffsi_obj_destructor(sg_cpu->util_vessel);
-				sg_cpu->util_vessel = NULL;
-			}
-		} else {
-			struct ffsi_class *vptr = sg_cpu->util_vessel;
-			memset(sg_cpu, 0, sizeof(*sg_cpu));
-			sg_cpu->util_vessel = vptr;
-		}
-#ifndef FFSI_CLUSTER_TRAVERSING		
-skip_subcpus:
-#endif
-#else
 		memset(sg_cpu, 0, sizeof(*sg_cpu));
-#endif
 		sg_cpu->cpu			= cpu;
 		sg_cpu->sg_policy		= sg_policy;
 	}
-	
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	sg_policy->be_stochastic = true;
-#endif
 
 	if (policy_is_shared(policy))
 		uu = sugov_update_shared;
@@ -1102,15 +875,6 @@ static void sugov_stop(struct cpufreq_policy *policy)
 		cpufreq_remove_update_util_hook(cpu);
 
 	synchronize_rcu();
-	
-#ifdef CONFIG_SCHED_FFSI_GLUE
-	for_each_cpu(cpu, policy->cpus) {
-		struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
-		if (sg_cpu->util_vessel) {
-			sg_cpu->util_vessel->stopper(sg_cpu->util_vessel);
-		}
-	}
-#endif
 
 	if (!policy->fast_switch_enabled) {
 		irq_work_sync(&sg_policy->irq_work);
