@@ -33,9 +33,9 @@ Copyright (C) 2012, Samsung Electronics. All rights reserved.
 //#include "../SELF_DISPLAY/self_display_FC3.h"
 
 struct AOR_MANUAL {
-	char aor_63h_143;
-	char aor_63h_144;
-	char aor_63h_145;
+	char aor_63h_119;
+	char aor_63h_120;
+	char aor_63h_121;
 };
 
 struct AOR_MANUAL normal_aor_manual[] = {
