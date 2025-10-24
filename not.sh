@@ -2,7 +2,7 @@
 LLVM_PATH="$HOME/toolchains/neutron-clang/bin/"
 LLVM_PATH="$HOME/toolchains/neutron-clang/bin/"
 
-KERNEL_NAME="Agnes-Tachyon"
+KERNEL_NAME="Eclipse"
 
 HOST_BUILD_ENV="ARCH=arm64 \
                 CC=${LLVM_PATH}clang \
