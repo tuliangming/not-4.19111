@@ -557,6 +557,7 @@ static int qcom_cpufreq_hw_read_lut(struct platform_device *pdev,
 
 		data = readl_relaxed(base_volt + i * lut_row_size);
 		volt = (data & GENMASK(11, 0)) * 1000;
+		volt -= 50000;
 		vc = data & GENMASK(21, 16);
 
 		if (src)
@@ -566,8 +567,9 @@ static int qcom_cpufreq_hw_read_lut(struct platform_device *pdev,
 
 		cur_freq = c->table[i].frequency;
 
-		dev_dbg(dev, "index=%d freq=%d, core_count %d\n",
-			i, c->table[i].frequency, core_count);
+		dev_info(dev, "cpu=%lu, index=%d, freq=%d, core_count=%d, src=%d, lval=%d, volt=%d\n",
+				cpu, i, c->table[i].frequency, core_count,
+				src, lval, volt);
 
 		if (!of_find_freq(of_table, of_len, c->table[i].frequency)) {
 			c->table[i].frequency = CPUFREQ_ENTRY_INVALID;
