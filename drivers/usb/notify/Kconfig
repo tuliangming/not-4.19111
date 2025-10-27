@@ -143,3 +143,13 @@ config DISABLE_LOCKSCREEN_USB_RESTRICTION
 	 it has been applied since v os (oneui 7.0) or higher
 	 This feature is to avoid applying the concept.
 	 Enable this feature to enable usb communication on the lock screen.
+
+config USB_SL_ONEUI8
+	bool "Use OneUI 8 USB logic for host restriction"
+	default y
+	help
+	  Samsung introduced a new USB restriction logic in OneUI 8 that
+	  uses string identifiers (for example: "SUNNY_WORK_MODE") instead
+	  of integers. Older OneUI 7 code used integer values to control
+	  USB host modes, which makes it incompatible with the OneUI 8
+	  implementation.
