@@ -179,6 +179,13 @@ static inline int get_boot_cpu_id(void)
 
 #endif /* !SMP */
 
+/**
+ * raw_smp_processor_id() - get the current (unstable) CPU id
+ *
+ * For then you know what you are doing and need an unstable
+ * CPU id.
+ */
+ 
 /*
  * smp_processor_id(): get the current CPU ID.
  *
@@ -194,6 +201,16 @@ static inline int get_boot_cpu_id(void)
  * which use for some reason is legal). Don't use this to hack around
  * the warning message, as your code might not work under PREEMPT.
  */
+ 
+/*
+ * Allow the architecture to differentiate between a stable and unstable read.
+ * For example, x86 uses an IRQ-safe asm-volatile read for the unstable but a
+ * regular asm read for the stable.
+ */
+#ifndef __smp_processor_id
+#define __smp_processor_id() raw_smp_processor_id()
+#endif
+
 #ifdef CONFIG_DEBUG_PREEMPT
   extern unsigned int debug_smp_processor_id(void);
 # define smp_processor_id() debug_smp_processor_id()
