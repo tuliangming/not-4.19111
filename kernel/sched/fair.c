@@ -144,14 +144,14 @@ unsigned int capacity_margin				= 1280;
 #define fits_capacity(cap, max)	((cap) * 1280 < (max) * 1024)
 
 unsigned int sched_capacity_margin_up[NR_CPUS] = {
-	[0 ... NR_CPUS - 1] = 1078
-}; /* ~5% margin */
+	[0 ... NR_CPUS - 1] = 1280
+}; /* ~20% margin */
 unsigned int sched_capacity_margin_down[NR_CPUS] = {
 	[0 ... NR_CPUS - 1] = 1078
 }; /* ~5% margin */
 unsigned int sched_capacity_margin_up_boosted[NR_CPUS] = {
-	3658, 3658, 3658, 3658, 1078, 1078, 1078, 1024
-}; /* 72% margin for small, 5% for big, 0% for big+ */
+	3658, 3658, 3658, 3658, 1280, 1280, 1280, 1078
+}; /* 72% margin for small, 20% for big, 5% for big+ */
 unsigned int sched_capacity_margin_down_boosted[NR_CPUS] = {
 	3658, 3658, 3658, 3658, 3658, 3658, 3658, 3658
 }; /* not used for small cores, 72% margin for big, 72% margin for big+ */
