@@ -65,6 +65,17 @@ ifeq ($(shell grep -q "inode_security_struct\s\+\*selinux_inode" $(srctree)/secu
 ccflags-y += -DKSU_OPTIONAL_SELINUX_INODE
 endif
 
+# Check if __poll_t exists in linux or uapi types headers (handles backports)
+ifneq ($(shell grep -q "__poll_t" \
+    $(srctree)/include/linux/types.h \
+    $(srctree)/include/uapi/linux/types.h 2>/dev/null; echo $$?),0)
+ccflags-y += -DKSU_NO___POLL_T
+endif
+
+ifeq ($(shell grep -q "anon_inode_getfd_secure" $(srctree)/fs/anon_inodes.c; echo $$?),0)
+ccflags-y += -DKSU_HAS_GETFD_SECURE
+endif
+
 # Checks Samsung
 ifeq ($(shell grep -q "CONFIG_KDP_CRED" $(srctree)/kernel/cred.c; echo $$?),0)
 ccflags-y += -DSAMSUNG_UH_DRIVER_EXIST
