@@ -32,6 +32,15 @@
 #include "manager.h"
 #include "sucompat.h"
 
+extern bool ksu_module_mounted __read_mostly;
+bool ksu_boot_completed __read_mostly = false;
+
+#ifdef CONFIG_KSU_EXTRAS
+extern void avc_spoof_init();
+#else
+void avc_spoof_init() {}
+#endif
+
 static const char KERNEL_SU_RC[] =
 	"\n"
 
@@ -87,6 +96,12 @@ void on_post_fs_data(void)
 
 	ksu_file_sid = ksu_get_ksu_file_sid();
 	pr_info("ksu_file sid: %d\n", ksu_file_sid);
+}
+
+void on_boot_completed(void){
+	ksu_boot_completed = true;
+	pr_info("on_boot_completed!\n");
+	avc_spoof_init(); 
 }
 
 #define MAX_ARG_STRINGS 0x7FFFFFFF

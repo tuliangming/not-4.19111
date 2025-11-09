@@ -9,6 +9,7 @@ void ksu_ksud_init();
 void ksu_ksud_exit();
 
 void on_post_fs_data(void);
+void on_boot_completed(void);
 
 bool ksu_is_safe_mode(void);
 
