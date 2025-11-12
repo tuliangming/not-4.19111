@@ -1240,20 +1240,12 @@ static void ufshcd_cmd_log_init(struct ufs_hba *hba)
 	}
 }
 
-static void ufshcd_cmd_log(struct ufs_hba *hba, char *str, char *cmd_type,
-	unsigned int tag, u8 cmd_id, u8 idn)
-{
-	__ufshcd_cmd_log(hba, str, cmd_type, tag, cmd_id, idn, 0, 0, 0);
-}
-
 static void ufshcd_dme_cmd_log(struct ufs_hba *hba, char *str, u8 cmd_id)
 {
-	ufshcd_cmd_log(hba, str, "dme", 0, cmd_id, 0);
 }
 
 static void ufshcd_custom_cmd_log(struct ufs_hba *hba, char *str)
 {
-	ufshcd_cmd_log(hba, str, "custom", 0, 0, 0);
 }
 
 static void ufshcd_print_cmd_log(struct ufs_hba *hba)
@@ -1359,9 +1351,6 @@ static inline void ufshcd_cond_add_cmd_trace(struct ufs_hba *hba,
 			idn = hba->dev_cmd.query.request.upiu_req.idn;
 		}
 	}
-
-	__ufshcd_cmd_log(hba, (char *) str, cmd_type, tag, cmd_id, idn,
-			 lrbp->lun, lba, transfer_len);
 }
 #else
 static inline void ufshcd_cond_add_cmd_trace(struct ufs_hba *hba,

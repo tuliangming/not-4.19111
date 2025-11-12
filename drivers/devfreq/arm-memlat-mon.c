@@ -159,16 +159,8 @@ static struct workqueue_struct *memlat_wq;
 #define MAX_COUNT_LIM 0xFFFFFFFFFFFFFFFF
 static inline void read_event(struct event_data *event)
 {
-	unsigned long ev_count = 0;
-	u64 total, enabled, running;
-
 	if (!event->pevent)
 		return;
-
-	total = perf_event_read_value(event->pevent, &enabled, &running);
-	ev_count = total - event->prev_count;
-	event->prev_count = total;
-	event->last_delta = ev_count;
 }
 
 static void update_counts(struct memlat_cpu_grp *cpu_grp)
@@ -288,18 +280,10 @@ static struct perf_event_attr *alloc_attr(void)
 static int set_event(struct event_data *ev, int cpu, unsigned int event_id,
 		     struct perf_event_attr *attr)
 {
-	struct perf_event *pevent;
-
 	if (!event_id)
 		return 0;
 
 	attr->config = event_id;
-	pevent = perf_event_create_kernel_counter(attr, cpu, NULL, NULL, NULL);
-	if (IS_ERR(pevent))
-		return PTR_ERR(pevent);
-
-	ev->pevent = pevent;
-	perf_event_enable(pevent);
 
 	return 0;
 }
