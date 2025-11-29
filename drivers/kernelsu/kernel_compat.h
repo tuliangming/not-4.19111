@@ -55,6 +55,6 @@ extern void ksu_seccomp_clear_cache(struct seccomp_filter *filter, int nr);
 extern void ksu_seccomp_allow_cache(struct seccomp_filter *filter, int nr);
 #endif
 
-#define ksu_access_ok(addr, size) access_ok(addr, size)
+#define ksu_access_ok(addr, size) access_ok(VERIFY_READ, addr, size)
 
 #endif
