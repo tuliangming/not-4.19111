@@ -34,7 +34,7 @@ set_perm_recursive 0 0 755 644 $ramdisk/*;
 set_perm_recursive 0 0 750 750 $ramdisk/init* $ramdisk/sbin;
 
 ## AnyKernel boot install
-dump_boot;
+split_boot;
 
 case "$ZIPFILE" in
    *-eff*)
@@ -51,53 +51,37 @@ esac
 
 # begin cmdline changes
 oneui=$(file_getprop /system/build.prop ro.build.version.oneui);
-gsi=$(file_getprop /system/build.prop ro.product.system.device);
 cos=$(file_getprop /system/build.prop ro.product.system.brand);
 if [ -n "$oneui" ]; then
    ui_print " "
-   ui_print " • OneUI ROM detected! • " # OneUI 7.X/6.X/5.X/4.X/3.X bomb
+   ui_print " • OneUI Support was removed! • " # OneUI 7.X/6.X/5.X/4.X/3.X bomb
    ui_print " "
-   ui_print " • Patching Fingerprint Sensor... • "
-   patch_cmdline "android.is_aosp" "android.is_aosp=0";
-elif [ $gsi == generic ]; then
-   ui_print " "
-   ui_print " • GSI ROM detected! • " # i hope the gsi doesnt boot :)
-   ui_print " "
-   ui_print " • Patching Fingerprint Sensor... • "
-   patch_cmdline "android.is_aosp" "android.is_aosp=0";
-   ui_print " "
-   ui_print " • Patching SELinux... • "
-   patch_cmdline "androidboot.selinux" "androidboot.selinux=permissive";
+   abort " • Instalation aborted! • "
 elif [ $cos == oplus ]; then
    ui_print " "
    ui_print " • Oplus ROM detected! • " # Damn
    ui_print " "
-   ui_print " • Patching Fingerprint Sensor... • "
-   patch_cmdline "android.is_aosp" "android.is_aosp=0";
-   ui_print " "
    ui_print " • Patching SELinux... • "
    patch_cmdline "androidboot.selinux" "androidboot.selinux=permissive";
    ui_print " "
    ui_print " • Spoofing verified boot state to green... • "
-   patch_cmdline "ro.boot.verifiedbootstate" "ro.boot.verifiedbootstate=green";
+   patch_cmdline "ro.boot.verifiedbootstate=orange" "ro.boot.verifiedbootstate=green";
 else
    ui_print " "
    ui_print " • AOSP ROM detected! • " # Android 16/15/14/13 veri gud
    ui_print " "
-   ui_print " • Patching Fingerprint Sensor... • "
-   patch_cmdline "android.is_aosp" "android.is_aosp=1";
-   ui_print " "
    ui_print " • Spoofing verified boot state to green... • "
-   patch_cmdline "ro.boot.verifiedbootstate" "ro.boot.verifiedbootstate=green";
+   patch_cmdline "ro.boot.verifiedbootstate=orange" "ro.boot.verifiedbootstate=green";
 fi
 
 ui_print " "
 ui_print " • Patching vbmeta unconditionally... • "
 dd if=$home/vbmeta.img of=/dev/block/platform/soc/1d84000.ufshc/by-name/vbmeta
 
+
 ui_print " "
 ui_print " • Patching dtbo unconditionally... • "
-ui_print " "
+dd if=$home/dtbo.img of=/dev/block/platform/soc/1d84000.ufshc/by-name/dtbo
 
-write_boot;
+flash_boot;
 ## end boot install
