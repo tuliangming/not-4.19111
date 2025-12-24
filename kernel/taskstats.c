@@ -718,8 +718,9 @@ static int taskstats2_cmd_attr_pid(struct genl_info *info)
 	rcu_read_unlock();
 
 	strlcpy(stats->name, tsk->comm, sizeof(stats->name));
-
+#ifdef CONFIG_CPUSETS
 	css = task_get_css(tsk, cpuset_cgrp_id);
+#endif
 	cgroup_path_ns(css->cgroup, stats->state, sizeof(stats->state),
 				current->nsproxy->cgroup_ns);
 	css_put(css);
