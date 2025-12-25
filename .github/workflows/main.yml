@@ -57,14 +57,14 @@ jobs:
 
       # Rest of your steps...
       - name: Set permissions
-        run: chmod +x not.sh
+        run: chmod +x x1q.sh
 
       - name: Build kernel
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHATID: ${{ secrets.TELEGRAM_CHATID }}
         run: |
-           sudo bash not.sh ${{ github.event.inputs.build_target }}
+           sudo bash x1q.sh ${{ github.event.inputs.build_target }}
 
       # Prepare artifacts
       - name: Prepare artifacts
